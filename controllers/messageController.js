@@ -33,7 +33,12 @@ exports.getUserMessages = async (req, res) => {
 				.lean()
 				.exec();
 			let unreadMsgCount = await Message.aggregate([
-				{ $match: { chatroom: item._id } },
+				{
+					$match: {
+						chatroom: item._id,
+						sender: { $ne: mongoose.Types.ObjectId(userId) },
+					},
+				},
 				{
 					$group: {
 						_id: "$isRead",
@@ -41,12 +46,22 @@ exports.getUserMessages = async (req, res) => {
 					},
 				},
 			]);
-			let count = unreadMsgCount.map((item) => item.count);
-			let message = { ...lastMessage };
-			message.unreadCount = count[0];
-			return message;
+
+			if (lastMessage) {
+				let message = { ...lastMessage };
+				if (unreadMsgCount.length > 0) {
+					let count = unreadMsgCount.map((item) => item.count);
+					message.unreadCount = count[0];
+				} else {
+					message.unreadCount = 0;
+				}
+				return message;
+			}
 		})
 	);
+	messages = messages.filter((el) => {
+		return el != null;
+	});
 	res.json({
 		messages,
 	});
